@@ -1,0 +1,25 @@
+CTSE Assignment 2 – incident triage MAS (merge-friendly layout)
+
+PROBLEM (one sentence)
+Turn raw application logs into a structured incident brief via a 4-agent pipeline.
+
+AGENT PIPELINE (order)
+1. ingest      — read/normalize log excerpts
+2. correlation — match patterns / query local incident history
+3. rca          — ranked root-cause hypotheses from evidence
+4. briefing     — final operator-facing markdown report
+
+OWNERSHIP (avoid editing another teammate's package without coordination)
+- src/mas/agents/{ingest,correlation,rca,briefing}  → prompts & persona per agent
+- src/mas/tools/{ingest,correlation,rca,briefing}   → one primary tool module per agent
+- tests/evaluation/cases/{ingest,correlation,rca,briefing} → pytest for that agent
+- docs/{ingest,correlation,rca,briefing}           → report notes / proof of work
+- Shared: src/mas/core/, src/mas/evaluation/harness/, tests/evaluation/test_harness.py
+
+INTEGRATION
+- Wire the graph in src/mas/core/orchestrator.py; pass GlobalState between steps.
+
+DELIVERABLES
+- docs/           technical report drafts
+- deliverables/   demo checklist (no large video binaries in git)
+- artifacts/      runtime logs and outputs (gitignored under logs/ and outputs/)

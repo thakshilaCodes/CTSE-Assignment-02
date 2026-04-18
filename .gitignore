@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment & secrets
+.env
+.env.local
+
+# Pytest
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Assignment artifacts (logs, local DBs, large outputs)
+artifacts/logs/
+artifacts/outputs/
+*.sqlite
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
