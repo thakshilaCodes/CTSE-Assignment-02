@@ -56,14 +56,42 @@ The pipeline is:
 - **Ollama** - local SLM inference (optional refinement in stages)
 - **PostgreSQL (pgAdmin4)** - incident knowledge store for correlation
 - **SQLite** - optional local fallback DB
-- **pytest** - automated tests
+- **pytest / Hypothesis** - automated tests and property-based evaluation
 - **httpx / psycopg** - API and PostgreSQL connectivity
+
+## Observability (LLMOps / AgentOps)
+
+The assignment requires logging/tracing of **agent steps**, **tool calls**, and **short output previews**.
+
+Implementation: `src/mas/core/observability.py`
+
+- `log_agent_step(agent_name, payload)` — each stage records structured metadata (e.g. ingest file counts, correlation signatures).
+- `log_tool_invocation(tool_name, arguments, result_preview)` — each tool call records arguments and a bounded result snippet (up to 2000 chars).
+
+**How to see traces in the console**
+
+Run the pipeline; logging is configured automatically when you use `run_pipeline.py`:
+
+```bash
+python run_pipeline.py artifacts/logs/sample_app.log --no-ollama
+```
+
+You should see lines like `INFO [mas] tool=...` and `INFO [mas] agent=...` on stderr.
+
+**How to save traces to a file**
+
+PowerShell:
+
+```powershell
+$env:MAS_LOG_FILE="artifacts/logs/mas_trace.log"
+python run_pipeline.py artifacts/logs/sample_app.log --no-ollama
+```
+
+Then open `artifacts/logs/mas_trace.log` for a full run audit trail.
 
 ## Run full pipeline
 
-From repo root:
-.\.venv312\Scripts\Activate.ps1
-
+From repo root (activate your venv first if you use one):
 
 ```bash
 python run_pipeline.py artifacts/logs/sample_app.log --no-ollama
@@ -220,8 +248,36 @@ Use LangGraph explicitly in orchestrator CLI:
 python -m mas.core.orchestrator artifacts/logs/sample_app.log --orchestrator langgraph --no-ollama > artifacts/outputs/pipeline_state.json
 ```
 
-Can run test scripts 
-python -m pytest
+## Automated evaluation (unified harness)
+
+The group-owned harness runs **property-based tests**, **per-agent evaluation cases**, **security checks**, and an optional **LLM-as-judge** (Ollama) when available.
+
+**Run the full evaluation suite**
+
+```bash
+python -m pytest tests/evaluation -v
+```
+
+**Or use the harness entry point** (defaults to `pytest tests/evaluation -v`):
+
+```bash
+python -m mas.evaluation.harness
+```
+
+Pass through pytest arguments, for example:
+
+```bash
+python -m mas.evaluation.harness tests/evaluation/cases/ingest -q
+```
+
+**LLM judge (optional)**
+
+If Ollama is not running, judge-related tests use a deterministic fallback. To skip live Ollama calls entirely:
+
+```powershell
+$env:OLLAMA_SKIP="1"
+python -m pytest tests/evaluation -q
+```
 
 ## Notes
 

@@ -13,6 +13,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from mas.core.observability import configure_observability  # noqa: E402
 from mas.core.orchestrator import (  # noqa: E402
     run_with_langgraph,
 )
@@ -48,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Directory to write pipeline outputs.",
     )
     args = parser.parse_args(argv)
+
+    configure_observability()
 
     use_ollama = not args.no_ollama
     discover = args.discover or not args.files

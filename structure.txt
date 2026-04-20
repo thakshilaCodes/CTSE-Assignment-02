@@ -21,5 +21,4 @@ INTEGRATION
 
 DELIVERABLES
 - docs/           technical report drafts
-- deliverables/   demo checklist (no large video binaries in git)
-- artifacts/      runtime logs and outputs (gitignored under logs/ and outputs/)
+- artifacts/      runtime logs and pipeline outputs (gitignored under logs/ and outputs/)
