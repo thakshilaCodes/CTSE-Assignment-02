@@ -14,6 +14,6 @@ def log_agent_step(agent_name: str, payload: dict[str, Any]) -> None:
 
 
 def log_tool_invocation(tool_name: str, arguments: dict[str, Any], result_snippet: str) -> None:
-    """Record a tool call and a short result preview (assignment: observability)."""
-    preview = result_snippet if len(result_snippet) <= 2000 else result_snippet[:2000] + "…"
+    """Record tool calls and a bounded result preview for observability."""
+    preview = result_snippet if len(result_snippet) <= 2000 else result_snippet[:2000] + "..."
     logger.info("tool=%s args=%s result_preview=%s", tool_name, arguments, preview)
