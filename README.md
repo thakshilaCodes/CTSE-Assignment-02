@@ -220,6 +220,9 @@ Use LangGraph explicitly in orchestrator CLI:
 python -m mas.core.orchestrator artifacts/logs/sample_app.log --orchestrator langgraph --no-ollama > artifacts/outputs/pipeline_state.json
 ```
 
+Can run test scripts 
+python -m pytest
+
 ## Notes
 
 - Use `--no-ollama` for fully offline/deterministic runs.
