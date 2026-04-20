@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from typing import Any
 
 from mas.agents.briefing import run_briefing_pipeline
 from mas.agents.correlation import run_correlation_pipeline
@@ -222,6 +223,78 @@ def run_once(
     return state
 
 
+def build_langgraph_app(
+    *,
+    use_ollama: bool = True,
+    incident_db: str | None = None,
+    discover: bool = False,
+    file_paths: list[str] | None = None,
+):
+    """
+    Build a LangGraph state machine for ingest -> correlation -> rca -> briefing.
+
+    The graph uses ``GlobalState`` as the shared state object. Each node returns
+    the updated state dictionary for the next stage.
+    """
+    try:
+        from langgraph.graph import END, START, StateGraph
+    except Exception as e:  # pragma: no cover - depends on optional package at runtime
+        raise RuntimeError(
+            "LangGraph is not installed. Install with `pip install langgraph` "
+            "or run with --orchestrator custom."
+        ) from e
+
+    def ingest_node(state: GlobalState) -> GlobalState:
+        return run_ingest_stage(
+            state,
+            file_paths=file_paths,
+            discover=discover,
+            use_ollama=use_ollama,
+        )
+
+    def correlation_node(state: GlobalState) -> GlobalState:
+        return run_correlation_stage(state, db_path=incident_db)
+
+    def rca_node(state: GlobalState) -> GlobalState:
+        return run_rca_stage(state, use_ollama=use_ollama)
+
+    def briefing_node(state: GlobalState) -> GlobalState:
+        return run_briefing_stage(state, use_ollama=use_ollama)
+
+    graph = StateGraph(GlobalState)
+    graph.add_node("ingest", ingest_node)
+    graph.add_node("correlation", correlation_node)
+    graph.add_node("rca", rca_node)
+    graph.add_node("briefing", briefing_node)
+
+    graph.add_edge(START, "ingest")
+    graph.add_edge("ingest", "correlation")
+    graph.add_edge("correlation", "rca")
+    graph.add_edge("rca", "briefing")
+    graph.add_edge("briefing", END)
+    return graph.compile()
+
+
+def run_with_langgraph(
+    *,
+    file_paths: list[str] | None = None,
+    discover: bool = False,
+    use_ollama: bool = True,
+    incident_db: str | None = None,
+    initial_state: GlobalState | None = None,
+) -> GlobalState:
+    """Execute full pipeline using LangGraph routing and shared state."""
+    app = build_langgraph_app(
+        use_ollama=use_ollama,
+        incident_db=incident_db,
+        discover=discover,
+        file_paths=file_paths,
+    )
+    start_state: GlobalState = dict(initial_state or {})
+    result: dict[str, Any] = app.invoke(start_state)
+    return dict(result)
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry for ingest/correlation/rca/briefing handoff."""
     parser = argparse.ArgumentParser(description="Run orchestrator pipeline handoff.")
@@ -235,6 +308,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ingest-file", default=None, help="Existing ingest findings markdown/text file.")
     parser.add_argument("--correlation-file", default=None, help="Existing correlation findings markdown/text file.")
     parser.add_argument("--rca-file", default=None, help="Existing RCA hypotheses markdown/text file.")
+    parser.add_argument(
+        "--orchestrator",
+        choices=("langgraph", "custom"),
+        default="langgraph",
+        help="Routing engine for stage orchestration.",
+    )
     args = parser.parse_args(argv)
 
     if args.ingest_file and args.correlation_file and args.rca_file:
@@ -272,15 +351,23 @@ def main(argv: list[str] | None = None) -> int:
         if args.run_briefing:
             state = run_briefing_stage(state, use_ollama=not args.no_ollama)
     else:
-        state = run_once(
-            file_paths=list(args.files) if args.files else None,
-            discover=args.discover or not args.files,
-            use_ollama=not args.no_ollama,
-            run_correlation=args.run_correlation,
-            run_rca=args.run_rca,
-            run_briefing=args.run_briefing,
-            incident_db=args.incident_db,
-        )
+        if args.orchestrator == "langgraph":
+            state = run_with_langgraph(
+                file_paths=list(args.files) if args.files else None,
+                discover=args.discover or not args.files,
+                use_ollama=not args.no_ollama,
+                incident_db=args.incident_db,
+            )
+        else:
+            state = run_once(
+                file_paths=list(args.files) if args.files else None,
+                discover=args.discover or not args.files,
+                use_ollama=not args.no_ollama,
+                run_correlation=args.run_correlation,
+                run_rca=args.run_rca,
+                run_briefing=args.run_briefing,
+                incident_db=args.incident_db,
+            )
 
     print(json.dumps(state, indent=2))
     return 0
